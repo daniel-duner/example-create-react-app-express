@@ -23,7 +23,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 postCallFormData = async (url, formData) => {
   config = {
     headers: {
-      "Authorization:" apiKey,
+      "Authorization": apiKey,
       "Content-Type": `multipart/form-data;boundary=${formData._boundary}`,
     },
   };
