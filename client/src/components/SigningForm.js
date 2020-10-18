@@ -9,14 +9,11 @@ class SigningForm extends Component {
     selectedFile: null,
     parties: [],
     partyFields: 0,
+    response: ""
   };
-  componentDidMount() {}
 
-  onChangeHandler = (e) => {
-    this.setState(
-      {
-        selectedFile: e.target.files[0],
-      });
+  fileInputHandler = (e) => {
+    this.setState({selectedFile: e.target.files[0],});
   };
 
   handleSubmit = async (e) => {
@@ -44,7 +41,7 @@ class SigningForm extends Component {
   };
 
   startSigningProcess = async () => {
-    const url = "/api/documents/new";
+    const url = "/api/document/start";
     let parties = [];
     this.state.parties.map((party) => {
       const { type, value } = party;
@@ -67,8 +64,7 @@ class SigningForm extends Component {
     this.setState((prevState) => {
       return {
         partyFields: partyFields + 1,
-        parties: [...prevState.parties, { type: "email", value: "" }],
-      };
+        parties: [...prevState.parties, { type: "email", value: "" }]      };
     });
   };
 
@@ -108,7 +104,7 @@ class SigningForm extends Component {
     return (
       <Form style={{ marginTop: "100px" }}>        
         <Form.Group>
-          <input type="file" name="file" onChange={this.onChangeHandler} />
+          <input type="file" name="file" onChange={this.fileInputHandler} />
         </Form.Group>
         {this.renderPartyFields()}
         <Form.Group>
@@ -133,7 +129,6 @@ class SigningForm extends Component {
           </Button>{" "}
         </Form.Group>
         <p>{this.state.response}</p>
-        <p>{this.state.status +" "+ this.state.statusText}</p>
       </Form>
     );
   }

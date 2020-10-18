@@ -4,7 +4,9 @@ const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
 dotenv.config();
 const { API_TOKEN, API_SECRET, ACCESS_TOKEN, ACCESS_SECRET } = process.env;
-const apiKey=`oauth_signature_method="PLAINTEXT", oauth_consumer_key="${API_TOKEN}", oauth_token="${ACCESS_TOKEN}", oauth_signature="${API_SECRET+"&"+ACCESS_SECRET}"`;
+const apiKey = `oauth_signature_method="PLAINTEXT", oauth_consumer_key="${API_TOKEN}", oauth_token="${ACCESS_TOKEN}", oauth_signature="${
+  API_SECRET + "&" + ACCESS_SECRET
+}"`;
 
 const multer = require("multer");
 const FormData = require("form-data");
@@ -21,23 +23,21 @@ app.use(bodyParser.urlencoded({ extended: true }));
 postCallFormData = async (url, formData) => {
   config = {
     headers: {
-      "Authorization": apiKey,
+      "Authorization:" apiKey,
       "Content-Type": `multipart/form-data;boundary=${formData._boundary}`,
     },
   };
-  try {
-    return await axios.post(url, formData, config);
-  } catch (error) {
-    console.log(error);
-  }
+  return await axios.post(url, formData, config);
 };
 
-async function createNewDocument(file){
-  console.log(file)
+createNewDocument = async (file) => {
   const { buffer, originalname: filename } = file;
   let formData = new FormData();
   formData.append("file", buffer, { filename });
-  return await postCallFormData("https://api-testbed.scrive.com/api/v2/documents/new",formData);
+  return await postCallFormData(
+    "https://api-testbed.scrive.com/api/v2/documents/new",
+    formData
+  );
 };
 
 updateParties = async (id, parties) => {
@@ -45,65 +45,33 @@ updateParties = async (id, parties) => {
   let formData = new FormData();
   formData.append("document", JSON.stringify({ id, parties }));
   formData.append("document_id", id);
-  return await postCallFormData(`https://api-testbed.scrive.com/api/v2/documents/${id}/update`, formData);
+  return await postCallFormData(
+    `https://api-testbed.scrive.com/api/v2/documents/${id}/update`,
+    formData
+  );
 };
 
-startSignProcess = async (id) => {
+startSigningProcess = async (id) => {
   config = {
-    headers: {"Authorization": apiKey },
+    headers: { "Authorization": apiKey },
   };
-  return await axios.post(`https://api-testbed.scrive.com/api/v2/documents/${id}/start`,id,config);
+  return await axios.post(
+    `https://api-testbed.scrive.com/api/v2/documents/${id}/start`,
+    id,
+    config
+  );
 };
 
 app.post("/api/documents/new", upload.any(), async (req, res, next) => {
   try {
     const signingParties = JSON.parse(req.body.signingParties);
-    /*console.log(req.files[0])*/
-    const { buffer, originalname: filename } = req.files[0];
-    let formData = new FormData();
-    formData.append("file", buffer, { filename });
     let response = await createNewDocument(req.files[0]);
-    /*let config = {
-      headers: {
-        "Authorization": apiKey,
-        "Content-Type": `multipart/form-data;boundary=${formData._boundary}`,
-      }
-    };
-    let response = await axios.post(
-      "https://api-testbed.scrive.com/api/v2/documents/new",
-      formData,
-      config
-    );*/
-    console.log(response);
-    console.log(response.status === 201);
     if (response.status === 201) {
       let { parties, id } = response.data;
       parties = parties.concat(signingParties);
       response = await updateParties(id, parties);
-      /*formData = new FormData();
-      formData.append("document", JSON.stringify({ id, parties }));
-      formData.append("document_id", id);
-      config = {
-        headers: {
-          Authorization: apiKey,
-          "Content-Type": `multipart/form-data;boundary=${formData._boundary}`,
-        },
-      };
-      response = await axios.post(
-        `https://api-testbed.scrive.com/api/v2/documents/${id}/update`,
-        formData,
-        config
-        );
-        console.log("update")*/
       if (response.status === 200) {
-        response = await startSignProcess(id);
-        /*config = {
-          headers: {
-            'Authorization': apiKey,
-          }
-        };
-        response = await axios.post(`https://api-testbed.scrive.com/api/v2/documents/${id}/start`, id, config);*/
-        res.sendStatus(response.status);
+        response = await startSigningProcess(id);
         if (response.status === 200) {
           console.log("success");
           res.status(response.status).send({ err: "SUCCESS" });
@@ -117,7 +85,7 @@ app.post("/api/documents/new", upload.any(), async (req, res, next) => {
       res.status(status).send({ err: "document problem" });
     }
   } catch (error) {
-    res.send({ err: error });
+    res.send({ err: error.message });
   }
 });
 
