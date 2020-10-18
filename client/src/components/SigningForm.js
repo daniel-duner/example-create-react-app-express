@@ -3,59 +3,59 @@ import axios from "axios";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
 
-
 class SigningForm extends Component {
-  state = {
-    selectedFile: null,
-    parties: [],
-    partyFields: 0,
-    response: ""
+  constructor(props){
+    super(props);
+    this.state = {
+      selectedFile: null,
+      parties: [{email: ""}],
+      partyFields: 1,
+      response: "",
+      emailIsValid: false
+    };
+  }
+  componentDidMount(){
+  }
+  
+  postCall = async (url, data, config) => {
+    return await axios.post(url, data, config);
   };
-
+  
   fileInputHandler = (e) => {
     this.setState({selectedFile: e.target.files[0],});
   };
 
   handleSubmit = async (e) => {
     e.preventDefault();
-    await this.startSigningProcess();
-  };
-
-  postCall = async (url, data, config) => {
-    try {
-      return await axios.post(url, data, config);
-    } catch (error) {
-      console.log(error);
+    if(this.state.selectedFile != null){
+      await this.startSigningProcess();
+    } else{
+      this.setState({response: "Select a file"})
     }
   };
 
   startSigningProcess = async () => {
-    try {
-      this.setState({ response: "File was uploaded, adding parties..." });
-      let response = await this.startSigningProcess();
-      console.log(response)
-      this.setState({status: response.status, statusText: response.statusText});
-    } catch (error) {
-      console.log(error);
+    try{
+      this.setState({response: "Starting signing process"});
+      const url = "/api/documents/start";
+      const formData = new FormData();
+      this.state.parties.map((party) => {
+        const { email } = party;
+        formData.append('email', email);
+      });
+      formData.append("file", this.state.selectedFile);
+      const config = {
+        headers: {
+          "content-type": `multipart/form-data;boundary=${formData._boundary}`,
+        },
+      };
+      const response = this.postCall(url, formData, config);
+      this.setState({response: response.status});
+    }catch(error){
+      console.log(error)
+      this.setState({response: error});
+      console.log(error)
     }
-  };
-
-  startSigningProcess = async () => {
-    const url = "/api/document/start";
-    let parties = [];
-    this.state.parties.map((party) => {
-      const { type, value } = party;
-      parties = [...parties, { fields: [{ type, value }] }];
-    });
-    const data = new FormData();
-    data.append("file", this.state.selectedFile);
-    data.append("signingParties", JSON.stringify(parties));
-    const config = {
-      headers: {
-        "content-type": `multipart/form-data;boundary=${data._boundary}`,
-      },
-    };
-    return this.postCall(url, data, config);
   };
   
   addPartyField = (e) => {
@@ -64,15 +64,15 @@ class SigningForm extends Component {
     this.setState((prevState) => {
       return {
         partyFields: partyFields + 1,
-        parties: [...prevState.parties, { type: "email", value: "" }]      };
+        parties: [...prevState.parties, {email: ""}]
+       };
     });
   };
 
-  handleChange = (e, index) => {
-    const { type, value } = e.target;
+  inputHandler = (e, index) => {
+    const { value } = e.target;
     const parties = [...this.state.parties];
-    console.log(index);
-    parties[index].value = value;
+    parties[index].email = value;
     this.setState({
       parties: parties,
     });
@@ -80,12 +80,11 @@ class SigningForm extends Component {
 
   renderPartyFields = () => {
     return this.state.parties.map((party, index) => {
-      console.log(party);
       return (
         <Form.Group
-          controlId={index}
+          controlId={`${party}+${index}`}
           key={index}
-          controlId="exampleForm.ControlInput1"
+          controlId=""
           style={{ width: "300px" }}
         >
           <Form.Label>{`Party ${index + 2}`}</Form.Label>
@@ -93,7 +92,7 @@ class SigningForm extends Component {
             type="email"
             name="email"
             placeholder="name@example.com"
-            onChange={(e) => this.handleChange(e, index)}
+            onChange={(e) => this.inputHandler(e, index)}
           />
         </Form.Group>
       );

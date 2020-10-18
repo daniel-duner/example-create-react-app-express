@@ -2,6 +2,7 @@ const express = require("express");
 const path = require("path");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
+const validator = require("email-validator");
 dotenv.config();
 const { API_TOKEN, API_SECRET, ACCESS_TOKEN, ACCESS_SECRET } = process.env;
 const apiKey = `oauth_signature_method="PLAINTEXT", oauth_consumer_key="${API_TOKEN}", oauth_token="${ACCESS_TOKEN}", oauth_signature="${
@@ -19,6 +20,7 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
 
 postCallFormData = async (url, formData) => {
   config = {
@@ -41,7 +43,6 @@ createNewDocument = async (file) => {
 };
 
 updateParties = async (id, parties) => {
-  console.log("update: " + id + " " + parties);
   let formData = new FormData();
   formData.append("document", JSON.stringify({ id, parties }));
   formData.append("document_id", id);
@@ -62,28 +63,33 @@ startSigningProcess = async (id) => {
   );
 };
 
-app.post("/api/documents/new", upload.any(), async (req, res, next) => {
-  try {
-    const signingParties = JSON.parse(req.body.signingParties);
-    let response = await createNewDocument(req.files[0]);
-    if (response.status === 201) {
-      let { parties, id } = response.data;
-      parties = parties.concat(signingParties);
-      response = await updateParties(id, parties);
-      if (response.status === 200) {
-        response = await startSigningProcess(id);
-        if (response.status === 200) {
-          console.log("success");
-          res.status(response.status).send({ err: "SUCCESS" });
-        } else {
-          res.status(response.status).send({ err: "document state problem" });
-        }
-      } else {
-        res.status(status).send({ err: "parties problem" });
-      }
-    } else {
-      res.status(status).send({ err: "document problem" });
+validateParty = (party, res) => {
+  if(!party){
+    res.status(400);
+  }else if(!Array.isArray(party)){
+    party = [party];
+  } 
+  for(var i = 0; i < party.length;i++){
+    if(!validator.validate(party[i])){
+      res.status(400);
     }
+  }
+  return party;
+}
+
+app.post("/api/documents/start", upload.any(), async (req, res, next) => {
+  let signingParties = validateParty(req.body.email, res);
+  try {
+    let response = await createNewDocument(req.files[0]);
+      let { parties: requestParty, id } = response.data;
+      let allParties = [...requestParty]
+      for(let i = 0; i < signingParties.length;i++){
+        allParties = [...allParties,{ fields: [{ type: "email", value: signingParties[i] }]}];
+      }
+      console.log(allParties)
+      response = await updateParties(id, allParties);
+      response = await startSigningProcess(id);
+      res.status(200).send({ err: "SUCCESS" });
   } catch (error) {
     res.send({ err: error.message });
   }
