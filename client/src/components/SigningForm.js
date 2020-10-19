@@ -18,10 +18,7 @@ class SigningForm extends Component {
     };
   }
   
-  postCall = async (url, data, config) => {
-    return await axios.post(url, data, config);
-  };
-  
+  //Changes input from fileInput
   fileInputHandler = (file) => {
     this.setState({selectedFile: file, fileName: file.name, error: null});
   };
@@ -31,8 +28,41 @@ class SigningForm extends Component {
     if(this.state.selectedFile != null){
       await this.startSigningProcess();
     } else{
-      this.setState({error: "Select a file", response: null})
+      this.messageHandler("No file");
     }
+  };
+
+  //creates appropriate response messages to client
+  messageHandler(message){
+    if(message === "Invalid email address"){
+      this.setState({error: message, response: null});
+    } else if(message === "Success!"){
+      this.setState({error: null, response: "Success! Signing process has started, check your email"});
+    } else if(message == "No file"){
+      this.setState({error: "Select a file", response: null});
+    }
+  }
+  
+  //changes party
+  partyInputHandler = (e, index) => {
+    const { value } = e.target;
+    const parties = [...this.state.parties];
+    parties[index].email = value;
+    this.setState({
+      parties: parties,
+    });
+  };
+
+  //adds party field information to state
+  addPartyField = (e) => {
+    e.preventDefault();
+    const { partyFields } = this.state;
+    this.setState((prevState) => {
+      return {
+        partyFields: partyFields + 1,
+        parties: [...prevState.parties, {email: ""}]
+       };
+    });
   };
 
   startSigningProcess = async () => {
@@ -50,40 +80,16 @@ class SigningForm extends Component {
           "content-type": `multipart/form-data;boundary=${formData._boundary}`,
         },
       };
-      const response = await this.postCall(url, formData, config);
-      this.setState({selectedFile: null, fileName: null, parties: [{email:""}], partyFields: 1, session: Math.random()})
-      this.setState({response: response.data, error: null});
+      const response = await axios.post(url, formData, config);
+      console.log("response");
+      this.setState({selectedFile: null, fileName: null, parties: [{email:""}], partyFields: 1, session: Math.random()});
+      this.messageHandler(response.data);
     }catch(error){
-      this.errorMessageHandler(error.response.data);
+      this.messageHandler(error.response.data);
     }
   };
 
-  errorMessageHandler(error){
-    if(error === "Invalid email address"){
-      this.setState({error: error, response: null});
-    }
-  }
-
-  addPartyField = (e) => {
-    e.preventDefault();
-    const { partyFields } = this.state;
-    this.setState((prevState) => {
-      return {
-        partyFields: partyFields + 1,
-        parties: [...prevState.parties, {email: ""}]
-       };
-    });
-  };
-
-  inputHandler = (e, index) => {
-    const { value } = e.target;
-    const parties = [...this.state.parties];
-    parties[index].email = value;
-    this.setState({
-      parties: parties,
-    });
-  };
-
+  //a randomised session is added for unique key, so that they will rerender properly
   renderPartyFields = () => {
     return this.state.parties.map((party, index) => {
       return (
@@ -97,19 +103,19 @@ class SigningForm extends Component {
             type="email"
             name="email"
             placeholder="name@example.com"
-            onChange={(e) => this.inputHandler(e, index)}
+            onChange={(e) => this.partyInputHandler(e, index)}
           />
         </Form.Group>
       );
     });
   };
+
   render() {
     return (
       <Form style={{ marginTop: "100px" }}>        
         <Form.Group>
           <FileUploader 
           name="Choose File" 
-          ref={this.hiddenFileInput} 
           handleFile={this.fileInputHandler}          
           />
           {this.state.fileName ? <p>{`File: ${this.state.fileName}`}</p> : <p></p>}
@@ -135,8 +141,8 @@ class SigningForm extends Component {
             Start Signing
           </Button>{" "}
         </Form.Group>
-        <p>{this.state.error}</p>
-        <p>{this.state.response}</p>
+        <p style={{color: "red", fontWeight: "bold"}}>{this.state.error}</p>
+        <p style={{color: "green", fontWeight: "bold"}}>{this.state.response}</p>
       </Form>
     );
   }

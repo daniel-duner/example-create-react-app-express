@@ -20,5 +20,12 @@ module.exports = {
         return [array];
       }
       return array;
+    },
+    prepareParties: function (requestingParty, receivingParties ){
+      let allParties = [...requestingParty];
+      for(let i = 0; i < receivingParties.length;i++){
+        allParties = [...allParties,{ fields: [{ type: "email", value: receivingParties[i] }]}];
+      }
+      return allParties
     }
 };
