@@ -20,7 +20,9 @@ class SigningForm extends Component {
   
   //Changes input from fileInput
   fileInputHandler = (file) => {
-    this.setState({selectedFile: file, fileName: file.name, error: null});
+    if(file){
+      this.setState({selectedFile: file, fileName: file.name, error: null});
+    }
   };
 
   handleSubmit = async (e) => {
@@ -89,7 +91,7 @@ class SigningForm extends Component {
     }
   };
 
-  //a randomised session is added for unique key, so that they will rerender properly
+  //a randomized session is added for unique key, so that they will rerender properly
   renderPartyFields = () => {
     return this.state.parties.map((party, index) => {
       return (

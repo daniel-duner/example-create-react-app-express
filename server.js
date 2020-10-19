@@ -33,6 +33,7 @@ app.post("/api/documents/start", upload.any(), async (req, res, next) => {
     service.simpleLogging(error.response.status, error.response.statusText);
     res.status(error.response.status).send(error.message);
   }
+  return;
 });
 
 if (process.env.NODE_ENV === "production") {
