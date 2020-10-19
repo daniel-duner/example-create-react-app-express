@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import axios from "axios";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
+import FileUploader from "./FileUploader";
 
 class SigningForm extends Component {
   constructor(props){
@@ -11,18 +12,18 @@ class SigningForm extends Component {
       parties: [{email: ""}],
       partyFields: 1,
       response: "",
-      emailIsValid: false
+      emailIsValid: false,
+      fileName: null,
+      session: Math.random()
     };
-  }
-  componentDidMount(){
   }
   
   postCall = async (url, data, config) => {
     return await axios.post(url, data, config);
   };
   
-  fileInputHandler = (e) => {
-    this.setState({selectedFile: e.target.files[0],});
+  fileInputHandler = (file) => {
+    this.setState({selectedFile: file, fileName: file.name, error: null});
   };
 
   handleSubmit = async (e) => {
@@ -30,18 +31,18 @@ class SigningForm extends Component {
     if(this.state.selectedFile != null){
       await this.startSigningProcess();
     } else{
-      this.setState({response: "Select a file"})
+      this.setState({error: "Select a file", response: null})
     }
   };
 
   startSigningProcess = async () => {
     try{
-      this.setState({response: "Starting signing process"});
+      this.setState({response: "Starting signing process", error: null});
       const url = "/api/documents/start";
       const formData = new FormData();
-      this.state.parties.map((party) => {
+      this.state.parties.forEach((party) => {
         const { email } = party;
-        formData.append('email', email);
+        formData.append('emails', email);
       });
       formData.append("file", this.state.selectedFile);
       const config = {
@@ -49,15 +50,20 @@ class SigningForm extends Component {
           "content-type": `multipart/form-data;boundary=${formData._boundary}`,
         },
       };
-      const response = this.postCall(url, formData, config);
-      this.setState({response: response.status});
+      const response = await this.postCall(url, formData, config);
+      this.setState({selectedFile: null, fileName: null, parties: [{email:""}], partyFields: 1, session: Math.random()})
+      this.setState({response: response.data, error: null});
     }catch(error){
-      console.log(error)
-      this.setState({response: error});
-      console.log(error)
+      this.errorMessageHandler(error.response.data);
     }
   };
-  
+
+  errorMessageHandler(error){
+    if(error === "Invalid email address"){
+      this.setState({error: error, response: null});
+    }
+  }
+
   addPartyField = (e) => {
     e.preventDefault();
     const { partyFields } = this.state;
@@ -83,8 +89,7 @@ class SigningForm extends Component {
       return (
         <Form.Group
           controlId={`${party}+${index}`}
-          key={index}
-          controlId=""
+          key={`${index}+${this.state.session}`}
           style={{ width: "300px" }}
         >
           <Form.Label>{`Party ${index + 2}`}</Form.Label>
@@ -98,12 +103,16 @@ class SigningForm extends Component {
       );
     });
   };
-
   render() {
     return (
       <Form style={{ marginTop: "100px" }}>        
         <Form.Group>
-          <input type="file" name="file" onChange={this.fileInputHandler} />
+          <FileUploader 
+          name="Choose File" 
+          ref={this.hiddenFileInput} 
+          handleFile={this.fileInputHandler}          
+          />
+          {this.state.fileName ? <p>{`File: ${this.state.fileName}`}</p> : <p></p>}
         </Form.Group>
         {this.renderPartyFields()}
         <Form.Group>
@@ -116,7 +125,6 @@ class SigningForm extends Component {
             Add Party
           </Button>{" "}
         </Form.Group>
-    
         <Form.Group>
           <Button
             variant="dark"
@@ -127,6 +135,7 @@ class SigningForm extends Component {
             Start Signing
           </Button>{" "}
         </Form.Group>
+        <p>{this.state.error}</p>
         <p>{this.state.response}</p>
       </Form>
     );

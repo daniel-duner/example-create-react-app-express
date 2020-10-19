@@ -1,18 +1,22 @@
 const express = require("express");
 const path = require("path");
 const bodyParser = require("body-parser");
-const dotenv = require("dotenv");
-const validator = require("email-validator");
-dotenv.config();
+//const dotenv = require("dotenv");
+//const validator = require("email-validator");
+//dotenv.config();
+/*
 const { API_TOKEN, API_SECRET, ACCESS_TOKEN, ACCESS_SECRET } = process.env;
 const apiKey = `oauth_signature_method="PLAINTEXT", oauth_consumer_key="${API_TOKEN}", oauth_token="${ACCESS_TOKEN}", oauth_signature="${
   API_SECRET + "&" + ACCESS_SECRET
-}"`;
+}"`;*/
+const service = require('./service');
+const request = require('./request');
 
 const multer = require("multer");
-const FormData = require("form-data");
-const axios = require("axios").default;
+//const FormData = require("form-data");
+//const axios = require("axios").default;
 const cors = require("cors");
+//const { sign } = require("crypto");
 const upload = multer();
 const app = express();
 const port = process.env.PORT || 5000;
@@ -21,77 +25,27 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-
-postCallFormData = async (url, formData) => {
-  config = {
-    headers: {
-      "Authorization": apiKey,
-      "Content-Type": `multipart/form-data;boundary=${formData._boundary}`,
-    },
-  };
-  return await axios.post(url, formData, config);
-};
-
-createNewDocument = async (file) => {
-  const { buffer, originalname: filename } = file;
-  let formData = new FormData();
-  formData.append("file", buffer, { filename });
-  return await postCallFormData(
-    "https://api-testbed.scrive.com/api/v2/documents/new",
-    formData
-  );
-};
-
-updateParties = async (id, parties) => {
-  let formData = new FormData();
-  formData.append("document", JSON.stringify({ id, parties }));
-  formData.append("document_id", id);
-  return await postCallFormData(
-    `https://api-testbed.scrive.com/api/v2/documents/${id}/update`,
-    formData
-  );
-};
-
-startSigningProcess = async (id) => {
-  config = {
-    headers: { "Authorization": apiKey },
-  };
-  return await axios.post(
-    `https://api-testbed.scrive.com/api/v2/documents/${id}/start`,
-    id,
-    config
-  );
-};
-
-validateParty = (party, res) => {
-  if(!party){
-    res.status(400);
-  }else if(!Array.isArray(party)){
-    party = [party];
-  } 
-  for(var i = 0; i < party.length;i++){
-    if(!validator.validate(party[i])){
-      res.status(400);
-    }
-  }
-  return party;
-}
-
 app.post("/api/documents/start", upload.any(), async (req, res, next) => {
-  let signingParties = validateParty(req.body.email, res);
+  if(!service.validateParty(req.body.emails)){
+    res.status(400).send("Invalid email address");
+    service.simpleLogging(400, "Invalid email address");
+    return;
+  };
   try {
-    let response = await createNewDocument(req.files[0]);
-      let { parties: requestParty, id } = response.data;
-      let allParties = [...requestParty]
-      for(let i = 0; i < signingParties.length;i++){
-        allParties = [...allParties,{ fields: [{ type: "email", value: signingParties[i] }]}];
-      }
-      console.log(allParties)
-      response = await updateParties(id, allParties);
-      response = await startSigningProcess(id);
-      res.status(200).send({ err: "SUCCESS" });
+    let signingParties = service.toArray(req.body.emails);
+    let response = await request.createNewDocument(req.files[0]);
+    let { parties: requestParty, id } = response.data;
+    let allParties = [...requestParty];
+    for(let i = 0; i < signingParties.length;i++){
+      allParties = [...allParties,{ fields: [{ type: "email", value: signingParties[i] }]}];
+    }
+    response = await request.updateParties(id, allParties);
+    response = await request.startSigningProcess(id);
+    service.simpleLogging(response.status, response.statusText);
+    res.status(200).send("Success! Signing process has started, check your email");
   } catch (error) {
-    res.send({ err: error.message });
+    service.simpleLogging(error.response.status, error.response.statusText);
+    res.status(error.response.status).send(error.message);
   }
 });
 
